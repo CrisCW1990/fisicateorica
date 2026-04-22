@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Souls-Like 3D Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            overflow: hidden;
+            font-family: 'Georgia', serif;
+            background: #000;
+        }
+        
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        #ui-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 100;
+        }
+        
+        .health-bar-container {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 400px;
+            height: 30px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid #8b0000;
+            border-radius: 5px;
+        }
+        
+        .health-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #8b0000, #ff0000);
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+        
+        .stamina-bar-container {
+            position: absolute;
+            bottom: 70px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 300px;
+            height: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid #228b22;
+            border-radius: 5px;
+        }
+        
+        .stamina-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #228b22, #32cd32);
+            border-radius: 3px;
+            transition: width 0.1s ease;
+        }
+        
+        .boss-health-container {
+            position: absolute;
+            top: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 600px;
+            height: 40px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid #8b0000;
+            border-radius: 5px;
+            display: none;
+        }
+        
+        .boss-health-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #8b0000, #dc143c);
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+        
+        .boss-name {
+            position: absolute;
+            top: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #ff6347;
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        }
+        
+        .controls-info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #fff;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 15px;
+            border-radius: 5px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        
+        .controls-info h3 {
+            color: #ff6347;
+            margin-bottom: 10px;
+        }
+        
+        .message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #ffd700;
+            font-size: 48px;
+            font-weight: bold;
+            text-shadow: 3px 3px 6px rgba(0,0,0,0.8);
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+        
+        .message.show {
+            opacity: 1;
+        }
+        
+        .damage-number {
+            position: absolute;
+            color: #ff4444;
+            font-size: 24px;
+            font-weight: bold;
+            pointer-events: none;
+            animation: floatUp 1s ease-out forwards;
+        }
+        
+        @keyframes floatUp {
+            0% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-50px);
+            }
+        }
+        
+        .lock-on-indicator {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #ff6347;
+            border-radius: 50%;
+            display: none;
+        }
+        
+        #start-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+            pointer-events: auto;
+        }
+        
+        #start-screen h1 {
+            color: #ff6347;
+            font-size: 64px;
+            margin-bottom: 20px;
+            text-shadow: 3px 3px 6px rgba(0,0,0,0.8);
+        }
+        
+        #start-screen p {
+            color: #fff;
+            font-size: 20px;
+            margin-bottom: 40px;
+            max-width: 600px;
+            text-align: center;
+            line-height: 1.6;
+        }
+        
+        #start-button {
+            padding: 15px 50px;
+            font-size: 24px;
+            background: linear-gradient(135deg, #8b0000, #ff0000);
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+        
+        #start-button:hover {
+            transform: scale(1.1);
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="ui-overlay">
+            <div class="controls-info">
+                <h3>Controles</h3>
+                <div>WASD - Moverse</div>
+                <div>Clic Izquierdo - Atacar</div>
+                <div>Espacio - Esquivar/Rodar</div>
+                <div>Shift - Correr</div>
+                <div>R - Bloquear</div>
+                <div>Tab - Bloquear objetivo</div>
+            </div>
+            
+            <div class="boss-health-container" id="boss-health-container">
+                <div class="boss-name">Caballero Oscuro</div>
+                <div class="boss-health-bar" id="boss-health-bar"></div>
+            </div>
+            
+            <div class="stamina-bar-container">
+                <div class="stamina-bar" id="stamina-bar"></div>
+            </div>
+            
+            <div class="health-bar-container">
+                <div class="health-bar" id="health-bar"></div>
+            </div>
+            
+            <div class="message" id="message"></div>
+            <div class="lock-on-indicator" id="lock-on-indicator"></div>
+        </div>
+        
+        <div id="start-screen">
+            <h1>SOULS-LIKE 3D</h1>
+            <p>Enfréntate al Caballero Oscuro en una batalla épica. Domina el combate, gestiona tu resistencia y demuestra tu habilidad.</p>
+            <button id="start-button">COMENZAR BATALLA</button>
+        </div>
+    </div>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Game state
+        let gameStarted = false;
+        let playerHealth = 100;
+        let playerMaxHealth = 100;
+        let playerStamina = 100;
+        let playerMaxStamina = 100;
+        let bossHealth = 100;
+        let bossMaxHealth = 100;
+        let isAttacking = false;
+        let isDodging = false;
+        let isBlocking = false;
+        let isLockedOn = false;
+        let staminaRegenRate = 0.5;
+        let lastAttackTime = 0;
+        let attackCooldown = 500;
+        
+        // Three.js setup
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x1a1a2e);
+        scene.fog = new THREE.Fog(0x1a1a2e, 20, 100);
+        
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        document.getElementById('game-container').appendChild(renderer.domElement);
+        
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
+        scene.add(ambientLight);
+        
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(10, 20, 10);
+        directionalLight.castShadow = true;
+        directionalLight.shadow.mapSize.width = 2048;
+        directionalLight.shadow.mapSize.height = 2048;
+        scene.add(directionalLight);
+        
+        const pointLight = new THREE.PointLight(0xff6347, 1, 50);
+        pointLight.position.set(0, 5, 0);
+        scene.add(pointLight);
+        
+        // Ground
+        const groundGeometry = new THREE.PlaneGeometry(100, 100);
+        const groundMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0x2d2d2d,
+            roughness: 0.8,
+            metalness: 0.2
+        });
+        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+        ground.rotation.x = -Math.PI / 2;
+        ground.receiveShadow = true;
+        scene.add(ground);
+        
+        // Add some environment details
+        function createPillar(x, z) {
+            const geometry = new THREE.CylinderGeometry(1, 1, 15, 8);
+            const material = new THREE.MeshStandardMaterial({ 
+                color: 0x4a4a4a,
+                roughness: 0.6,
+                metalness: 0.4
+            });
+            const pillar = new THREE.Mesh(geometry, material);
+            pillar.position.set(x, 7.5, z);
+            pillar.castShadow = true;
+            pillar.receiveShadow = true;
+            scene.add(pillar);
+            
+            // Add torch
+            const torchGeometry = new THREE.CylinderGeometry(0.3, 0.3, 2, 8);
+            const torchMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x8b4513,
+                emissive: 0xff4500,
+                emissiveIntensity: 0.5
+            });
+            const torch = new THREE.Mesh(torchGeometry, torchMaterial);
+            torch.position.set(x, 12, z);
+            scene.add(torch);
+            
+            const flameLight = new THREE.PointLight(0xff4500, 1, 10);
+            flameLight.position.set(x, 13, z);
+            scene.add(flameLight);
+        }
+        
+        // Create pillars around the arena
+        createPillar(-20, -20);
+        createPillar(20, -20);
+        createPillar(-20, 20);
+        createPillar(20, 20);
+        createPillar(-30, 0);
+        createPillar(30, 0);
+        createPillar(0, -30);
+        createPillar(0, 30);
+        
+        // Player
+        const playerGeometry = new THREE.BoxGeometry(1, 2, 1);
+        const playerMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0x4169e1,
+            metalness: 0.6,
+            roughness: 0.4
+        });
+        const player = new THREE.Mesh(playerGeometry, playerMaterial);
+        player.position.set(0, 1, 15);
+        player.castShadow = true;
+        scene.add(player);
+        
+        // Player sword
+        const swordGeometry = new THREE.BoxGeometry(0.1, 0.1, 1.5);
+        const swordMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0xc0c0c0,
+            metalness: 0.9,
+            roughness: 0.1
+        });
+        const sword = new THREE.Mesh(swordGeometry, swordMaterial);
+        sword.position.set(0.6, 0.5, 0.5);
+        player.add(sword);
+        
+        // Boss
+        const bossGeometry = new THREE.BoxGeometry(2, 4, 2);
+        const bossMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0x8b0000,
+            metalness: 0.7,
+            roughness: 0.3
+        });
+        const boss = new THREE.Mesh(bossGeometry, bossMaterial);
+        boss.position.set(0, 2, -10);
+        boss.castShadow = true;
+        scene.add(boss);
+        
+        // Boss weapon
+        const bossWeaponGeometry = new THREE.BoxGeometry(0.2, 0.2, 3);
+        const bossWeaponMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0x4a4a4a,
+            metalness: 0.8,
+            roughness: 0.2
+        });
+        const bossWeapon = new THREE.Mesh(bossWeaponGeometry, bossWeaponMaterial);
+        bossWeapon.position.set(1.2, 1, 0.5);
+        boss.add(bossWeapon);
+        
+        // Camera controls
+        let cameraAngle = 0;
+        let cameraDistance = 8;
+        let cameraHeight = 3;
+        
+        // Input handling
+        const keys = {};
+        let mouseX = 0;
+        let mouseY = 0;
+        
+        document.addEventListener('keydown', (e) => {
+            keys[e.code] = true;
+            
+            if (e.code === 'Space' && !isDodging && playerStamina >= 20) {
+                dodge();
+            }
+            
+            if (e.code === 'ShiftLeft') {
+                // Sprinting will be handled in update
+            }
+            
+            if (e.code === 'KeyR') {
+                isBlocking = true;
+            }
+            
+            if (e.code === 'Tab') {
+                e.preventDefault();
+                toggleLockOn();
+            }
+        });
+        
+        document.addEventListener('keyup', (e) => {
+            keys[e.code] = false;
+            
+            if (e.code === 'KeyR') {
+                isBlocking = false;
+            }
+        });
+        
+        document.addEventListener('mousedown', (e) => {
+            if (e.button === 0 && gameStarted && !isAttacking) {
+                attack();
+            }
+        });
+        
+        document.addEventListener('mousemove', (e) => {
+            if (gameStarted) {
+                cameraAngle -= e.movementX * 0.002;
+            }
+        });
+        
+        // Game functions
+        function dodge() {
+            isDodging = true;
+            playerStamina -= 20;
+            updateUI();
+            
+            const dodgeDirection = new THREE.Vector3();
+            if (keys['KeyW']) dodgeDirection.z = -1;
+            if (keys['KeyS']) dodgeDirection.z = 1;
+            if (keys['KeyA']) dodgeDirection.x = -1;
+            if (keys['KeyD']) dodgeDirection.x = 1;
+            
+            if (dodgeDirection.length() === 0) {
+                dodgeDirection.z = -1; // Default forward
+            }
+            
+            dodgeDirection.normalize();
+            
+            // Quick dash animation
+            const originalX = player.position.x;
+            const originalZ = player.position.z;
+            player.position.x += dodgeDirection.x * 3;
+            player.position.z += dodgeDirection.z * 3;
+            
+            setTimeout(() => {
+                isDodging = false;
+            }, 300);
+        }
+        
+        function attack() {
+            const now = Date.now();
+            if (now - lastAttackTime < attackCooldown || playerStamina < 10) return;
+            
+            isAttacking = true;
+            playerStamina -= 10;
+            lastAttackTime = now;
+            updateUI();
+            
+            // Sword swing animation
+            const originalRotation = sword.rotation.y;
+            sword.rotation.y = -Math.PI / 2;
+            
+            setTimeout(() => {
+                sword.rotation.y = originalRotation;
+                isAttacking = false;
+                
+                // Check if hitting boss
+                if (isLockedOn || player.position.distanceTo(boss.position) < 5) {
+                    checkHit();
+                }
+            }, 200);
+        }
+        
+        function checkHit() {
+            const distance = player.position.distanceTo(boss.position);
+            if (distance < 5) {
+                const damage = Math.floor(Math.random() * 8) + 5;
+                bossHealth -= damage;
+                showDamageNumber(damage, boss.position);
+                updateUI();
+                
+                // Boss knockback
+                const knockbackDirection = new THREE.Vector3()
+                    .subVectors(boss.position, player.position)
+                    .normalize();
+                boss.position.add(knockbackDirection.multiplyScalar(0.5));
+                
+                if (bossHealth <= 0) {
+                    victory();
+                }
+            }
+        }
+        
+        function bossAttack() {
+            if (!gameStarted || bossHealth <= 0) return;
+            
+            const distance = boss.position.distanceTo(player.position);
+            if (distance < 8) {
+                // Boss attacks
+                const bossWeaponOriginalRotation = bossWeapon.rotation.x;
+                bossWeapon.rotation.x = -Math.PI / 2;
+                
+                setTimeout(() => {
+                    bossWeapon.rotation.x = bossWeaponOriginalRotation;
+                    
+                    // Check if player is hit
+                    if (!isDodging && !isBlocking) {
+                        const damage = Math.floor(Math.random() * 12) + 8;
+                        playerHealth -= damage;
+                        showDamageNumber(damage, player.position);
+                        updateUI();
+                        
+                        if (playerHealth <= 0) {
+                            defeat();
+                        }
+                    } else if (isBlocking) {
+                        // Reduced damage when blocking
+                        const damage = Math.floor(Math.random() * 4) + 2;
+                        playerHealth -= damage;
+                        playerStamina -= 15;
+                        showDamageNumber(damage, player.position);
+                        updateUI();
+                        
+                        if (playerHealth <= 0) {
+                            defeat();
+                        }
+                    }
+                }, 300);
+            }
+        }
+        
+        function showDamageNumber(damage, position) {
+            const message = document.createElement('div');
+            message.className = 'damage-number';
+            message.textContent = '-' + damage;
+            message.style.left = '50%';
+            message.style.top = '50%';
+            document.getElementById('ui-overlay').appendChild(message);
+            
+            setTimeout(() => {
+                message.remove();
+            }, 1000);
+        }
+        
+        function toggleLockOn() {
+            isLockedOn = !isLockedOn;
+            document.getElementById('lock-on-indicator').style.display = isLockedOn ? 'block' : 'none';
+            
+            if (isLockedOn) {
+                document.getElementById('boss-health-container').style.display = 'block';
+            } else {
+                document.getElementById('boss-health-container').style.display = 'none';
+            }
+        }
+        
+        function updateUI() {
+            const healthPercent = (playerHealth / playerMaxHealth) * 100;
+            const staminaPercent = (playerStamina / playerMaxStamina) * 100;
+            const bossHealthPercent = (bossHealth / bossMaxHealth) * 100;
+            
+            document.getElementById('health-bar').style.width = Math.max(0, healthPercent) + '%';
+            document.getElementById('stamina-bar').style.width = Math.max(0, staminaPercent) + '%';
+            document.getElementById('boss-health-bar').style.width = Math.max(0, bossHealthPercent) + '%';
+        }
+        
+        function showMessage(text) {
+            const messageEl = document.getElementById('message');
+            messageEl.textContent = text;
+            messageEl.classList.add('show');
+            
+            setTimeout(() => {
+                messageEl.classList.remove('show');
+            }, 2000);
+        }
+        
+        function victory() {
+            gameStarted = false;
+            showMessage('¡VICTORIA!');
+            boss.material.color.setHex(0x333333);
+            
+            setTimeout(() => {
+                location.reload();
+            }, 3000);
+        }
+        
+        function defeat() {
+            gameStarted = false;
+            showMessage('HAS MUERTO');
+            player.material.color.setHex(0x333333);
+            
+            setTimeout(() => {
+                location.reload();
+            }, 3000);
+        }
+        
+        // AI for boss
+        let lastBossAction = 0;
+        const bossActionInterval = 2000;
+        
+        function updateBoss() {
+            if (!gameStarted || bossHealth <= 0) return;
+            
+            const now = Date.now();
+            if (now - lastBossAction > bossActionInterval) {
+                lastBossAction = now;
+                
+                const distance = boss.position.distanceTo(player.position);
+                
+                if (distance > 6) {
+                    // Move towards player
+                    const direction = new THREE.Vector3()
+                        .subVectors(player.position, boss.position)
+                        .normalize();
+                    boss.position.add(direction.multiplyScalar(0.1));
+                    boss.lookAt(player.position);
+                } else {
+                    // Attack
+                    bossAttack();
+                }
+            }
+        }
+        
+        // Main game loop
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            if (!gameStarted) {
+                renderer.render(scene, camera);
+                return;
+            }
+            
+            // Player movement
+            if (!isDodging) {
+                const speed = keys['ShiftLeft'] ? 0.15 : 0.08;
+                const direction = new THREE.Vector3();
+                
+                if (keys['KeyW']) direction.z = -1;
+                if (keys['KeyS']) direction.z = 1;
+                if (keys['KeyA']) direction.x = -1;
+                if (keys['KeyD']) direction.x = 1;
+                
+                if (direction.length() > 0) {
+                    direction.normalize();
+                    
+                    if (isLockedOn) {
+                        // Strafe around boss
+                        const angle = Math.atan2(direction.x, direction.z);
+                        const orbitSpeed = 0.05;
+                        const currentAngle = Math.atan2(
+                            player.position.x - boss.position.x,
+                            player.position.z - boss.position.z
+                        );
+                        const newAngle = currentAngle + angle * orbitSpeed;
+                        const distance = player.position.distanceTo(boss.position);
+                        
+                        player.position.x = boss.position.x + Math.sin(newAngle) * distance;
+                        player.position.z = boss.position.z + Math.cos(newAngle) * distance;
+                        player.lookAt(boss.position);
+                    } else {
+                        // Normal movement
+                        const moveX = direction.x * Math.cos(cameraAngle) - direction.z * Math.sin(cameraAngle);
+                        const moveZ = direction.x * Math.sin(cameraAngle) + direction.z * Math.cos(cameraAngle);
+                        
+                        player.position.x += moveX * speed;
+                        player.position.z += moveZ * speed;
+                        player.rotation.y = cameraAngle;
+                    }
+                    
+                    // Stamina drain while moving
+                    if (keys['ShiftLeft'] && playerStamina > 0) {
+                        playerStamina -= 0.1;
+                        updateUI();
+                    }
+                }
+            }
+            
+            // Stamina regeneration
+            if (playerStamina < playerMaxStamina && !isDodging && !isAttacking) {
+                playerStamina = Math.min(playerMaxStamina, playerStamina + staminaRegenRate);
+                updateUI();
+            }
+            
+            // Update camera
+            if (isLockedOn) {
+                const distance = 8;
+                const height = 3;
+                const angle = Math.atan2(
+                    player.position.x - boss.position.x,
+                    player.position.z - boss.position.z
+                );
+                
+                camera.position.x = boss.position.x + Math.sin(angle) * distance;
+                camera.position.z = boss.position.z + Math.cos(angle) * distance;
+                camera.position.y = height;
+                camera.lookAt(boss.position);
+            } else {
+                camera.position.x = player.position.x + Math.sin(cameraAngle) * cameraDistance;
+                camera.position.z = player.position.z + Math.cos(cameraAngle) * cameraDistance;
+                camera.position.y = player.position.y + cameraHeight;
+                camera.lookAt(player.position);
+            }
+            
+            // Update boss
+            updateBoss();
+            
+            // Animate boss weapon idle
+            bossWeapon.rotation.z = Math.sin(Date.now() * 0.001) * 0.1;
+            
+            renderer.render(scene, camera);
+        }
+        
+        // Start game
+        document.getElementById('start-button').addEventListener('click', () => {
+            document.getElementById('start-screen').style.display = 'none';
+            gameStarted = true;
+            document.exitPointerLock();
+        });
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+        
+        // Initialize UI
+        updateUI();
+        
+        // Start animation loop
+        animate();
+    </script>
+</body>
+</html>
